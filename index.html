@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGROSENSE - Soil Health Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+        }
+        .main-container {
+            background: linear-gradient(to bottom right, #ffffff, #e6f4ea);
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .health-gauge-inner {
+            transition: transform 0.5s ease-in-out;
+        }
+        .chatbot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: 500px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+            transform: translateY(110%);
+        }
+        .chatbot-container.active {
+             transform: translateY(0);
+        }
+        .chat-header {
+            background-color: #2E7D32; /* Darker Green */
+            color: white;
+            padding: 10px 15px;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #language-selector {
+            background-color: #4CAF50; /* Lighter Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-size: 14px;
+        }
+        #language-selector:focus {
+            outline: none;
+        }
+        .chat-body {
+            padding: 15px;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-message {
+            padding: 8px 12px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #DCF8C6;
+            align-self: flex-end;
+        }
+        .bot-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        .chat-input {
+            border-top: 1px solid #e0e0e0;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+        }
+        #chat-toggle-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #2E7D32;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="main-container">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col items-center">
+            <div class="flex items-center">
+                <svg class="w-10 h-10 text-green-700 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+                <h1 class="text-3xl font-bold text-gray-800">AGROSENSE</h1>
+            </div>
+            <p class="text-gray-500 mt-1">A Soil Health Monitoring System.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-6">
+            <!-- Soil Health Status Card -->
+            <div class="md:col-span-3 card p-6 flex flex-col justify-between">
+                 <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-700">Overall Soil Health</h2>
+                        <p class="text-gray-500">ML Model Analysis</p>
+                    </div>
+                     <span id="health-status-text" class="px-3 py-1 text-sm font-medium rounded-full"></span>
+                </div>
+                <div class="relative flex justify-center items-center h-48 mt-4">
+                    <svg class="w-full h-full" viewBox="0 0 36 36">
+                        <path class="text-gray-200"
+                            stroke-dasharray="100, 100"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none" stroke-width="3"></path>
+                        <path id="health-gauge" class="text-green-500"
+                            stroke-dasharray="0, 100"
+                            d="M18 2.0845
+                            a 15.9155 15.9155 0 0 1 0 31.831
+                            a 15.9155 15.9155 0 0 1 0 -31.831"
+                            fill="none" stroke-width="3" stroke-linecap="round"></path>
+                    </svg>
+                    <div id="health-percentage" class="absolute text-4xl font-bold text-gray-700">0%</div>
+                </div>
+                <p id="health-recommendation" class="text-center text-gray-600 mt-2"></p>
+            </div>
+            
+            <!-- Field Information Card -->
+            <div class="md:col-span-3 card p-6">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Field Information</h2>
+                <div class="space-y-3 text-gray-600">
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Crop Status:</span>
+                        <span class="font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded">Pre-sowing (Rabi)</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Last Irrigation:</span>
+                        <span class="font-semibold">Aug 28, 2025</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Soil Type:</span>
+                        <span class="font-semibold">Alluvial Loam</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Location:</span>
+                        <span class="font-semibold">Noida, UP</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sensor Data Cards -->
+            <div class="md:col-span-2 card p-6">
+                <h3 class="font-semibold text-gray-600">Soil Moisture</h3>
+                <p id="soil-moisture" class="text-3xl font-bold text-green-700 mt-2">--%</p>
+                <p id="moisture-status" class="text-sm text-gray-500 mt-1"></p>
+            </div>
+            <div class="md:col-span-2 card p-6">
+                <h3 class="font-semibold text-gray-600">Temperature & Humidity</h3>
+                <p id="temperature" class="text-3xl font-bold text-green-700 mt-2">--°C</p>
+                <p id="humidity" class="text-sm text-gray-500 mt-1">Humidity: --%</p>
+            </div>
+             <div class="md:col-span-2 card p-6">
+                <h3 class="font-semibold text-gray-600">Vibration Sensor</h3>
+                <p id="vibration-status" class="text-2xl font-bold text-green-700 mt-2">--</p>
+                <p class="text-sm text-gray-500 mt-1">Detects soil displacement</p>
+            </div>
+
+            <div class="md:col-span-6 card p-6">
+                 <h3 class="font-semibold text-gray-600 mb-2">NPK Nutrients (mg/kg)</h3>
+                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="text-lg font-semibold text-gray-500">Nitrogen (N)</p>
+                        <p id="npk-n" class="text-2xl font-bold text-green-700">--</p>
+                    </div>
+                     <div>
+                        <p class="text-lg font-semibold text-gray-500">Phosphorus (P)</p>
+                        <p id="npk-p" class="text-2xl font-bold text-green-700">--</p>
+                    </div>
+                     <div>
+                        <p class="text-lg font-semibold text-gray-500">Potassium (K)</p>
+                        <p id="npk-k" class="text-2xl font-bold text-green-700">--</p>
+                    </div>
+                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chatbot -->
+    <button id="chat-toggle-button">
+        <i class="fas fa-comments"></i>
+    </button>
+    <div id="chatbot-container" class="chatbot-container">
+        <div class="chat-header">
+            <div>
+                <h3 class="font-bold text-lg">AgriBot Assistant</h3>
+                <select id="language-selector">
+                    <option value="en-IN">English</option>
+                    <option value="hi-IN">हिन्दी</option>
+                    <option value="bn-IN">বাংলা</option>
+                </select>
+            </div>
+            <button id="close-chat-button" class="text-white text-2xl font-bold leading-none">&times;</button>
+        </div>
+        <div id="chat-body" class="chat-body">
+             <div class="bot-message chat-message">Hello! How can I help you with your soil health today?</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chat-input-text" class="w-full border-0 focus:ring-0" placeholder="Type a message...">
+            <button id="voice-input-button" class="px-3 text-gray-500 hover:text-green-700">
+                <i class="fas fa-microphone"></i>
+            </button>
+             <button id="send-chat-button" class="px-3 text-gray-500 hover:text-green-700">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- STATEFUL MOCK DATA ---
+            let mockData = {
+                moisture: 45.0,
+                temp: 28.0,
+                humidity: 70.0,
+                n: 54, // Changed from 110 to achieve a starting score of 84%
+                p: 28, 
+                k: 160,
+                vibration: 'Stable'
+            };
+
+            // --- MOCK DATA SIMULATION ---
+            function generateMockData() {
+                // Simulate more realistic, incremental changes
+                let tempChange = (Math.random() - 0.5) * 0.5;
+                mockData.temp += tempChange;
+                
+                mockData.moisture += (Math.random() - 0.5) * 2;
+                // Make humidity have some inverse relation to temperature change
+                mockData.humidity -= tempChange * 4 + (Math.random() - 0.5) * 2;
+                
+                mockData.n += (Math.random() - 0.5) * 5;
+                mockData.p += (Math.random() - 0.5) * 2;
+                mockData.k += (Math.random() - 0.5) * 8;
+                mockData.vibration = Math.random() > 0.95 ? 'High Activity' : 'Stable';
+
+                // Keep values within reasonable bounds
+                mockData.moisture = Math.max(20, Math.min(80, mockData.moisture));
+                mockData.temp = Math.max(15, Math.min(42, mockData.temp));
+                mockData.humidity = Math.max(30, Math.min(95, mockData.humidity));
+                mockData.n = Math.max(50, Math.min(200, mockData.n));
+                mockData.p = Math.max(10, Math.min(60, mockData.p));
+                mockData.k = Math.max(100, Math.min(250, mockData.k));
+
+                // Update UI
+                document.getElementById('soil-moisture').textContent = `${mockData.moisture.toFixed(1)}%`;
+                const moistureStatusEl = document.getElementById('moisture-status');
+                if (mockData.moisture > 65) {
+                    moistureStatusEl.textContent = 'Too Wet';
+                    moistureStatusEl.className = 'text-sm text-blue-500 mt-1';
+                } else if (mockData.moisture < 35) {
+                    moistureStatusEl.textContent = 'Dry, needs water';
+                     moistureStatusEl.className = 'text-sm text-yellow-600 mt-1';
+                } else {
+                    moistureStatusEl.textContent = 'Optimal';
+                     moistureStatusEl.className = 'text-sm text-green-500 mt-1';
+                }
+
+                document.getElementById('temperature').textContent = `${mockData.temp.toFixed(1)}°C`;
+                document.getElementById('humidity').textContent = `Humidity: ${mockData.humidity.toFixed(1)}%`;
+                
+                document.getElementById('npk-n').textContent = mockData.n.toFixed(0);
+                document.getElementById('npk-p').textContent = mockData.p.toFixed(0);
+                document.getElementById('npk-k').textContent = mockData.k.toFixed(0);
+
+                document.getElementById('vibration-status').textContent = mockData.vibration;
+
+                // ML Model - Calculate Overall Health from sensor data
+                const healthScore = calculateHealthScore(mockData);
+                updateHealthGauge(healthScore);
+            }
+
+            // --- PSEUDO ML MODEL ---
+            function calculateHealthScore(data) {
+                // Optimal ranges for post-monsoon North India, with weights
+                const optimal = {
+                    moisture: { min: 40, max: 60, weight: 0.3 },
+                    temp: { min: 22, max: 32, weight: 0.15 },
+                    n: { min: 90, max: 140, weight: 0.2 },
+                    p: { min: 30, max: 50, weight: 0.175 },
+                    k: { min: 140, max: 190, weight: 0.175 }
+                };
+
+                // Helper to calculate score for a single value with penalties
+                const calculateRealisticMetricScore = (value, optimalRange, highPenaltyFactor = 1.5) => {
+                    if (value >= optimalRange.min && value <= optimalRange.max) {
+                        return 100; // Perfect score if within optimal range
+                    }
+                    
+                    let diff;
+                    if (value > optimalRange.max) {
+                        // Apply a higher penalty for being over the optimal range (e.g., waterlogging)
+                        diff = (value - optimalRange.max) * highPenaltyFactor;
+                    } else { // value < optimalRange.min
+                        diff = optimalRange.min - value;
+                    }
+
+                    const range = optimalRange.max - optimalRange.min;
+                    const score = Math.max(0, 100 - (diff / range) * 100);
+                    return score;
+                };
+                
+                // For moisture, being too wet (waterlogged) is worse, so apply a high penalty factor
+                const moistureScore = calculateRealisticMetricScore(data.moisture, optimal.moisture, 2.0);
+                const tempScore = calculateRealisticMetricScore(data.temp, optimal.temp, 1.2);
+                const nScore = calculateRealisticMetricScore(data.n, optimal.n, 1.5);
+                const pScore = calculateRealisticMetricScore(data.p, optimal.p, 1.5);
+                const kScore = calculateRealisticMetricScore(data.k, optimal.k, 1.5);
+
+                // Calculate weighted average
+                let totalScore = 
+                    (moistureScore * optimal.moisture.weight) +
+                    (tempScore * optimal.temp.weight) +
+                    (nScore * optimal.n.weight) +
+                    (pScore * optimal.p.weight) +
+                    (kScore * optimal.k.weight);
+                
+                // Interaction penalty: If it's hot AND dry, it's worse than just one of those.
+                if (data.temp > 30 && data.moisture < 35) {
+                    totalScore *= 0.90; // Apply a 10% penalty for heat stress
+                }
+
+                return Math.max(0, Math.min(100, totalScore)); // Clamp score between 0 and 100
+            }
+
+            // --- HEALTH GAUGE ---
+            function updateHealthGauge(score) {
+                const percentage = Math.round(score);
+                const gauge = document.getElementById('health-gauge');
+                const percentageText = document.getElementById('health-percentage');
+                const statusText = document.getElementById('health-status-text');
+                const recommendationText = document.getElementById('health-recommendation');
+                
+                const circumference = 2 * Math.PI * 15.9155;
+                const offset = circumference - (percentage / 100) * circumference;
+                
+                gauge.style.strokeDasharray = `${(percentage / 100) * circumference}, ${circumference}`;
+                percentageText.textContent = `${percentage}%`;
+
+                if (percentage > 85) {
+                    gauge.classList.remove('text-yellow-500', 'text-red-500');
+                    gauge.classList.add('text-green-500');
+                    statusText.textContent = 'Excellent';
+                    statusText.className = 'px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800';
+                    recommendationText.textContent = 'Your soil is in great condition. Maintain current practices.';
+                } else if (percentage > 60) {
+                    gauge.classList.remove('text-green-500', 'text-red-500');
+                    gauge.classList.add('text-yellow-500');
+                    statusText.textContent = 'Good';
+                    statusText.className = 'px-3 py-1 text-sm font-medium rounded-full bg-yellow-100 text-yellow-800';
+                     recommendationText.textContent = 'Good condition. Consider minor nutrient adjustments.';
+                } else {
+                    gauge.classList.remove('text-green-500', 'text-yellow-500');
+                    gauge.classList.add('text-red-500');
+                    statusText.textContent = 'Needs Attention';
+                    statusText.className = 'px-3 py-1 text-sm font-medium rounded-full bg-red-100 text-red-800';
+                     recommendationText.textContent = 'Soil requires attention. Check for nutrient deficiency and moisture levels.';
+                }
+            }
+
+
+            
+            // --- CHATBOT ---
+            const chatToggleButton = document.getElementById('chat-toggle-button');
+            const chatbotContainer = document.getElementById('chatbot-container');
+            const closeChatButton = document.getElementById('close-chat-button');
+            const chatBody = document.getElementById('chat-body');
+            const chatInput = document.getElementById('chat-input-text');
+            const sendButton = document.getElementById('send-chat-button');
+            const voiceButton = document.getElementById('voice-input-button');
+            const langSelector = document.getElementById('language-selector');
+
+            let currentLanguage = 'en-IN';
+
+            const translations = {
+                'en-IN': {
+                    greeting: "Hello! How can I help you with your soil health today?",
+                    unknown: "I'm not sure how to answer that. Can you ask about soil health, moisture, or nutrients?",
+                    soilHealth: (health, recommendation) => `The current soil health is at ${health}. Recommendation: ${recommendation}`,
+                    moisture: (moisture, status) => `Soil moisture is at ${moisture}. The status is: ${status}.`,
+                    temperature: (temp) => `The current soil temperature is ${temp}.`,
+                    nutrients: (n, p, k) => `Nutrient levels are: Nitrogen (N): ${n}, Phosphorus (P): ${p}, Potassium (K): ${k} mg/kg.`,
+                    thanks: "You're welcome! Let me know if you need anything else.",
+                    speechError: "Sorry, I couldn't understand that. Please try again.",
+                    inputPlaceholder: "Type a message..."
+                },
+                'hi-IN': {
+                    greeting: "नमस्ते! मैं आज आपके मिट्टी के स्वास्थ्य के बारे में कैसे मदद कर सकता हूँ?",
+                    unknown: "मुझे यकीन नहीं है कि इसका उत्तर कैसे देना है। क्या आप मिट्टी के स्वास्थ्य, नमी, या पोषक तत्वों के बारे में पूछ सकते हैं?",
+                    soilHealth: (health, recommendation) => `वर्तमान मिट्टी का स्वास्थ्य ${health} पर है। सिफारिश: ${recommendation}`,
+                    moisture: (moisture, status) => `मिट्टी की नमी ${moisture} पर है। स्थिति है: ${status}.`,
+                    temperature: (temp) => `मिट्टी का वर्तमान तापमान ${temp} है।`,
+                    nutrients: (n, p, k) => `पोषक तत्वों का स्तर है: नाइट्रोजन (N): ${n}, फास्फोरस (P): ${p}, पोटेशियम (K): ${k} mg/kg।`,
+                    thanks: "आपका स्वागत है! अगर आपको कुछ और चाहिए तो मुझे बताएं।",
+                    speechError: "क्षमा करें, मैं समझ नहीं सका। कृपया पुनः प्रयास करें।",
+                    inputPlaceholder: "एक संदेश टाइप करें..."
+                },
+                'bn-IN': {
+                    greeting: "নমস্কার! আমি আজ আপনার মাটির স্বাস্থ্য নিয়ে কিভাবে সাহায্য করতে পারি?",
+                    unknown: "আমি ঠিক বুঝতে পারছি না। আপনি কি মাটির স্বাস্থ্য, আর্দ্রতা বা পুষ্টি সম্পর্কে জিজ্ঞাসা করতে পারেন?",
+                    soilHealth: (health, recommendation) => `বর্তমান মাটির স্বাস্থ্য ${health}। সুপারিশ: ${recommendation}`,
+                    moisture: (moisture, status) => `মাটির আর্দ্রতা ${moisture}। অবস্থা: ${status}.`,
+                    temperature: (temp) => `বর্তমান মাটির তাপমাত্রা ${temp}।`,
+                    nutrients: (n, p, k) => `পুষ্টির মাত্রা: নাইট্রোজেন (N): ${n}, ফসফরাস (P): ${p}, পটাসিয়াম (K): ${k} mg/kg।`,
+                    thanks: "আপনাকে স্বাগতম! আপনার আর কিছু লাগলে আমাকে জানান।",
+                    speechError: "দুঃখিত, আমি বুঝতে পারিনি। আবার চেষ্টা করুন।",
+                    inputPlaceholder: "একটি বার্তা টাইপ করুন..."
+                }
+            };
+            
+            chatToggleButton.addEventListener('click', () => {
+                 chatbotContainer.classList.toggle('active');
+                 chatToggleButton.classList.toggle('fa-comments');
+                 chatToggleButton.classList.toggle('fa-times');
+            });
+            
+             closeChatButton.addEventListener('click', () => {
+                 chatbotContainer.classList.remove('active');
+                 chatToggleButton.classList.remove('fa-times');
+                 chatToggleButton.classList.add('fa-comments');
+            });
+
+            function addMessage(text, sender) {
+                const messageEl = document.createElement('div');
+                messageEl.classList.add('chat-message', sender === 'user' ? 'user-message' : 'bot-message');
+                messageEl.textContent = text;
+                chatBody.appendChild(messageEl);
+                chatBody.scrollTop = chatBody.scrollHeight;
+            }
+
+            function getBotResponse(userText) {
+                userText = userText.toLowerCase().trim();
+                const langPack = translations[currentLanguage];
+                let botText = langPack.unknown;
+
+                if (userText.includes('hello') || userText.includes('hi') || userText.includes('namaste') || userText.includes('नमस्ते') || userText.includes('নমস্কার')) {
+                    botText = langPack.greeting;
+                } else if (userText.includes('soil health') || userText.includes('स्वास्थ्य') || userText.includes('স্বাস্থ্য')) {
+                    const health = document.getElementById('health-percentage').textContent;
+                    const recommendation = document.getElementById('health-recommendation').textContent;
+                    botText = langPack.soilHealth(health, recommendation);
+                } else if (userText.includes('moisture') || userText.includes('नमी') || userText.includes('আর্দ্রতা')) {
+                     const moisture = document.getElementById('soil-moisture').textContent;
+                     const status = document.getElementById('moisture-status').textContent;
+                     botText = langPack.moisture(moisture, status);
+                } else if (userText.includes('temperature') || userText.includes('तापमान') || userText.includes('তাপমাত্রা')) {
+                     const temp = document.getElementById('temperature').textContent;
+                     botText = langPack.temperature(temp);
+                } else if (userText.includes('nutrients') || userText.includes('npk') || userText.includes('पोषक') || userText.includes('পুষ্টি')) {
+                    const n = document.getElementById('npk-n').textContent;
+                    const p = document.getElementById('npk-p').textContent;
+                    const k = document.getElementById('npk-k').textContent;
+                    botText = langPack.nutrients(n, p, k);
+                } else if (userText.includes('thank you') || userText.includes('thanks') || userText.includes('धन्यवाद') || userText.includes('ধন্যবাদ')) {
+                    botText = langPack.thanks;
+                }
+
+                setTimeout(() => {
+                     addMessage(botText, 'bot');
+                }, 500);
+            }
+
+            function handleSend() {
+                const text = chatInput.value;
+                if (text) {
+                    addMessage(text, 'user');
+                    getBotResponse(text);
+                    chatInput.value = '';
+                }
+            }
+
+            sendButton.addEventListener('click', handleSend);
+            chatInput.addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') {
+                    handleSend();
+                }
+            });
+
+            // Voice Recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if(SpeechRecognition) {
+                const recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.lang = currentLanguage; 
+                
+                langSelector.addEventListener('change', (e) => {
+                    currentLanguage = e.target.value;
+                    recognition.lang = currentLanguage;
+                    chatInput.placeholder = translations[currentLanguage].inputPlaceholder;
+                    chatBody.innerHTML = ''; // Clear chat
+                    addMessage(translations[currentLanguage].greeting, 'bot');
+                });
+
+                voiceButton.addEventListener('click', () => {
+                    voiceButton.classList.add('text-red-500', 'fa-fade');
+                    try {
+                        recognition.start();
+                    } catch(e) {
+                        console.error("Recognition already started.", e);
+                        voiceButton.classList.remove('text-red-500', 'fa-fade');
+                    }
+                });
+                
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    chatInput.value = transcript;
+                    handleSend();
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                     addMessage(translations[currentLanguage].speechError, 'bot');
+                };
+                
+                recognition.onend = () => {
+                    voiceButton.classList.remove('text-red-500', 'fa-fade');
+                };
+
+            } else {
+                voiceButton.style.display = 'none';
+                console.log("Speech Recognition not supported in this browser.");
+            }
+
+
+            // --- INITIALIZE and REFRESH DATA ---
+            function initializeApp() {
+                chatInput.placeholder = translations[currentLanguage].inputPlaceholder;
+                const initialBotMessage = document.querySelector('.bot-message');
+                if(initialBotMessage) {
+                    initialBotMessage.textContent = translations[currentLanguage].greeting;
+                }
+                generateMockData();
+                setInterval(generateMockData, 5000); // Refresh data every 5 seconds
+            }
+
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+
